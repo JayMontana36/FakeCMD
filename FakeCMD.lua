@@ -65,10 +65,10 @@ local Program Program = {
 									ifconfig	=	function()
 														Program.Commands.ipconfig()
 													end,
-					},{__index = function(input) return
-														function(input)
-															if input then
-																Program.Functions.os_execute(input)
+					},{__index = function(Command, CommandArguments, CommandWhole) return
+														function(CommandWhole)
+															if CommandWhole then
+																Program.Functions.os_execute(Program.Functions.string_format('(%s)', CommandWhole))
 															end
 														end
 												 end}),
