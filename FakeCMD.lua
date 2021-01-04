@@ -68,7 +68,7 @@ local Program Program = {
 					},{__index = function(input) return
 														function(input)
 															if input then
-																Program.Functions.Print(Program.Functions.string_format("'%s' is not recognized as an internal or external command,\noperable program or batch file.", input))
+																Program.Functions.os_execute(input)
 															end
 														end
 												 end}),
