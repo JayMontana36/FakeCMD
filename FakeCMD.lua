@@ -1,12 +1,16 @@
+--[[ The Program ]]
 local Program Program = {
+	--[[ The Program's (Local) Variables ]]
 	Locals		=	{
-						Username	=	os.getenv("USERNAME") or "User",
-						Admin		=	true,
-						LastInput	=	{
+						Username	=	os.getenv("USERNAME") or "User",	-- Name of currently logged in user
+						Admin		=	true,								-- Show "C:\Windows\system32" instead of "C:\Users\Name" when true
+						LastInput	=	{									-- Internal Command Handler Stuff
 											String	=	nil,
 											Table	=	nil,
+											Command	=	nil,
 										},
 					},
+	--[[ The Program's (Local) (Internal) Functions ]]
 	Functions	=	{
 						string_gmatch		=	string.gmatch,
 						Split				=	function(inputstr, sep)
@@ -28,7 +32,15 @@ local Program Program = {
 						PrintNewLineUser	=	function()
 													Program.Functions.io_write(Program.Functions.string_format("\nC:\\Users\\%s>", Program.Locals.Username))
 												end,
+						table_remove		=	table.remove,
+						table_concat		=	table.concat,
+						string_lower		=	string.lower,
+						string_match		=	string.match,
+						StringBlank			=	function(inputstr)
+													return not (Program.Functions.string_match(inputstr, "%S") ~= nil)
+												end,
 					},
+	--[[ The Program's Initialization/Startup Function ]]
 	Init		=	function()
 						if Program.Locals.Admin then
 							Program.Functions.os_execute("title Administrator: Command Prompt")
@@ -41,57 +53,60 @@ local Program Program = {
 							Program.Program()
 						end
 					end,
+	--[[ The Program's Commands (Overrides) ]]
 	Commands	=	setmetatable({
-									ipconfig	=	function()
-														Program.Functions.Print()
-														Program.Functions.Print("Windows IP Configuration")
-														Program.Functions.Print()
-														Program.Functions.Print()
-														Program.Functions.Print("Wireless LAN adapter Wi-Fi:")
-														Program.Functions.Print()
-														Program.Functions.Print("   Media State . . . . . . . . . . . : Media disconnected")
-														Program.Functions.Print("   Connection-specific DNS Suffix  . :")
-														Program.Functions.Print()
-														Program.Functions.Print("Ethernet adapter Bluetooth Network Connection:")
-														Program.Functions.Print()
-														Program.Functions.Print("   Media State . . . . . . . . . . . : Media disconnected")
-														Program.Functions.Print("   Connection-specific DNS Suffix  . :")
-														Program.Functions.Print()
-														Program.Functions.Print("Ethernet adapter Ethernet:")
-														Program.Functions.Print()
-														Program.Functions.Print("   Media State . . . . . . . . . . . : Media disconnected")
-														Program.Functions.Print("   Connection-specific DNS Suffix  . :")
-													end,
-									ifconfig	=	function()
-														Program.Commands.ipconfig()
-													end,
-					},{__index = function(Command, CommandArguments, CommandWhole) return
-														function(CommandWhole)
-															if CommandWhole then
-																Program.Functions.os_execute(Program.Functions.string_format('(%s)', CommandWhole))
-															end
-														end
-												 end}),
-	Program		=	function()
-						if Program.Locals.Admin then
-							Program.Functions.PrintNewLineAdmin()
-						else
-							Program.Functions.PrintNewLineUser()
-						end
-						
-						Program.Locals.LastInput.String	= Program.Functions.io_read()
-						Program.Locals.LastInput.Table	= Program.Functions.Split(Program.Locals.LastInput.String)
-						
-						if Program.Locals.LastInput.Table then
-							if #Program.Locals.LastInput.Table < 1 then
-								Program.Commands[nil]()
-							else
-								Program.Commands[Program.Locals.LastInput.Table[1]](Program.Locals.LastInput.Table[1], Program.Locals.LastInput.Table, Program.Locals.LastInput.String)
+						ipconfig	=	function(CommandTable, CommandString)
+											local Print = Program.Functions.Print										-- Localize the already local Print function since it will be called multiple times here within this example command
+											Print()
+											Print("Windows IP Configuration")
+											Print()
+											Print()
+											Print("Wireless LAN adapter Wi-Fi:")
+											Print()
+											Print("   Media State . . . . . . . . . . . : Media disconnected")
+											Print("   Connection-specific DNS Suffix  . :")
+											Print()
+											Print("Ethernet adapter Bluetooth Network Connection:")
+											Print()
+											Print("   Media State . . . . . . . . . . . : Media disconnected")
+											Print("   Connection-specific DNS Suffix  . :")
+											Print()
+											Print("Ethernet adapter Ethernet:")
+											Print()
+											Print("   Media State . . . . . . . . . . . : Media disconnected")
+											Print("   Connection-specific DNS Suffix  . :")
+										end,
+						ifconfig	=	function(CommandTable, CommandString)											-- The Linux equivalent to the Windows "ipconfig" command, "ifconfig"
+											Program.Commands.ipconfig(CommandTable, CommandString)						-- Make this "ifconfig" command use our already defined/overridden "ipconfig" command function
+										end,
+						echo		=	function(CommandTable, CommandString)
+											Program.Functions.table_remove(CommandTable, 1)								-- Removes the "echo" command from the command table so that we do not echo the entire command which would include the echo part
+											Program.Functions.Print(Program.Functions.table_concat(CommandTable, " "))	-- Print the remainder of what is left in the command table
+										end,
+						cmd			=	function(CommandTable, CommandString)											-- Catch a call to break out of FakeCMD and into a real CMD (within FakeCMD)
+											return																		-- Do nothing but return back to FakeCMD instead
+										end,
+					},{__index = function(CommandTable, CommandString) return
+						function(CommandTable, CommandString)
+							if CommandString and not Program.Functions.StringBlank(CommandString) then
+								Program.Functions.os_execute(Program.Functions.string_format('(%s)', CommandString))
 							end
-						else
-							Program.Commands[nil]()
 						end
+					end}),
+	--[[ The Program's Main/Basic Function/Routine ]]
+	Program		=	function()
+						if Program.Locals.Admin then				-- If Admin Then
+							Program.Functions.PrintNewLineAdmin()	-- Print "C:\Windows\system32"
+						else										-- Otherwise If Not Admin Then
+							Program.Functions.PrintNewLineUser()	-- Print "C:\Users\Name"
+						end
+						
+						Program.Locals.LastInput.String		=	Program.Functions.io_read() or ""											-- Read the user's input as a string
+						Program.Locals.LastInput.Table		=	Program.Functions.Split(Program.Locals.LastInput.String)					-- Convert the user's input to a table for command arguments (for FakeCMD override commands)
+						Program.Locals.LastInput.Command	=	Program.Functions.string_lower(Program.Locals.LastInput.Table[1] or "")		-- Force the first part of the user's input command to be in all lowercase, fixing/avoiding the usage of uppercase to bypass FakeCMD override commands
+						
+						Program.Commands[Program.Locals.LastInput.Command](Program.Locals.LastInput.Table, Program.Locals.LastInput.String)	-- Finally handle the user's input
 					end,
 }
 
-Program.Init()
+Program.Init() --Initialize/Start Program
